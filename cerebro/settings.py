@@ -18,7 +18,11 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-secret-key')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = ['*']
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://cerebro-synchronizer-1.onrender.com',
+]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 
 
@@ -143,3 +147,6 @@ cloudinary.config(
     api_secret = os.environ.get('CLOUDINARY_API_SECRET'),
     secure     = True
 )
+# File upload size limit
+DATA_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 524288000  # 500MB
