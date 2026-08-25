@@ -843,36 +843,63 @@ function loadLocalFile(input) {
 
 function loadFile(file) {
   const v = document.getElementById('main-video');
-  showToast('UPLOADING VIDEO TO SERVER...', 'warn');
+
+  // Check file size — max 500MB
+  const maxSize = 500 * 1024 * 1024;
+  if (file.size > maxSize) {
+    showToast('FILE TOO LARGE — MAX 500MB', 'warn');
+    addLog('err', `FILE TOO LARGE: ${(file.size/1024/1024).toFixed(1)}MB`);
+    return;
+  }
+
+  showToast('UPLOADING VIDEO TO CLOUD...', 'warn');
   addLog('info', `UPLOADING: ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
+
   const fileZone = document.getElementById('fileZone');
   if (fileZone) fileZone.style.opacity = '0.5';
+
+  // Upload directly to Cloudinary from browser
   const formData = new FormData();
-  formData.append('video', file);
-  fetch('/upload/', { method: 'POST', body: formData })
+  formData.append('file', file);
+  formData.append('upload_preset', 'cerebro_videos');
+  formData.append('resource_type', 'video');
+
+  const CLOUD_NAME = 'djsdg4z5x'; // ← replace with your cloud name
+
+  fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`, {
+    method: 'POST',
+    body: formData,
+  })
   .then(res => res.json())
   .then(data => {
     if (fileZone) fileZone.style.opacity = '1';
-    if (data.url) {
-      v.src = data.url;
+
+    if (data.secure_url) {
+      v.src = data.secure_url;
       v.load();
       document.getElementById('videoPlaceholder').style.display = 'none';
       state.videoLoaded = true;
-      state.currentVideoUrl = data.url;
+      state.currentVideoUrl = data.secure_url;
+
       addLog('ok', `VIDEO UPLOADED: ${file.name}`);
-      showToast('VIDEO READY — LISTENERS NOTIFIED', 'ok');
+      addLog('ok', `CLOUD URL: ${data.secure_url}`);
+      showToast('VIDEO READY — BROADCASTING TO LISTENERS', 'ok');
+
       document.getElementById('reel1').classList.add('spinning');
       document.getElementById('reel2').classList.add('spinning');
-      wsSend({ type: 'video_url', url: data.url });
+
+      // Broadcast URL to all listeners via WebSocket
+      wsSend({ type: 'video_url', url: data.secure_url });
       addLog('info', 'VIDEO URL BROADCAST TO ALL LISTENERS');
+
     } else {
-      showToast('UPLOAD FAILED: ' + (data.error || 'Unknown error'), 'warn');
-      addLog('err', 'UPLOAD FAILED: ' + (data.error || 'Unknown error'));
+      showToast('UPLOAD FAILED: ' + (data.error?.message || 'Unknown error'), 'warn');
+      addLog('err', 'UPLOAD FAILED: ' + (data.error?.message || 'Unknown'));
     }
   })
   .catch(err => {
     if (fileZone) fileZone.style.opacity = '1';
-    showToast('UPLOAD ERROR — CHECK SERVER', 'warn');
+    showToast('UPLOAD ERROR — CHECK CONNECTION', 'warn');
     addLog('err', `UPLOAD ERROR: ${err.message}`);
   });
 }
